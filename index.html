@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rova Water Boy</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <style>
+        /* Importerar premium-typsnitt för ren design */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Cinzel:wght@500;700&display=swap');
+
+        :root {
+            --bg-main: #0a0a0c;
+            --bg-card: #121215;
+            --gold-light: #F4D068;
+            --gold-dark: #AA771C;
+            --text-main: #e8e8e8;
+            --text-muted: #555;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            letter-spacing: 0.5px;
+        }
+
+        .container {
+            text-align: center;
+            padding: 3.5rem;
+            border-radius: 24px;
+            background: var(--bg-card);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.03);
+            width: 320px;
+        }
+
+        .runes {
+            font-family: 'Cinzel', serif;
+            font-size: 1.1rem;
+            background: linear-gradient(to right, var(--gold-light), var(--gold-dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 8px;
+            margin-bottom: 8px;
+            opacity: 0.9;
+        }
+
+        h1 {
+            font-family: 'Inter', sans-serif;
+            font-weight: 300;
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            margin: 0 0 2rem 0;
+            text-transform: uppercase;
+            letter-spacing: 6px;
+        }
+
+        .timer-display {
+            font-variant-numeric: tabular-nums;
+            font-size: 5rem;
+            font-weight: 300;
+            margin: 1rem 0 2.5rem 0;
+            color: var(--text-main);
+            text-shadow: 0 4px 20px rgba(244, 208, 104, 0.05);
+        }
+
+        input {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--text-muted);
+            color: var(--text-main);
+            padding: 8px;
+            width: 80px;
+            font-size: 1.5rem;
+            text-align: center;
+            font-family: 'Inter', sans-serif;
+            transition: border-color 0.3s;
+            outline: none;
+            margin-bottom: 2.5rem;
+        }
+
+        input:focus {
+            border-bottom: 1px solid var(--gold-light);
+        }
+
+        input::placeholder {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        /* Döljer pilar i nummerfältet för ett renare utseende */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--gold-light), var(--gold-dark));
+            color: #000;
+            border: none;
+            padding: 16px 36px;
+            border-radius: 50px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 15px rgba(170, 119, 28, 0.2);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(244, 208, 104, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="runes">ᚱᛟᚹᚨ</div>
+    <h1>Water Boy</h1>
+    
+    <div class="timer-display" id="display">00:00</div>
+    
+    <input type="number" id="minutes" placeholder="Min" min="1">
+    <br>
+    <button onclick="startTimer()">Initiera</button>
+</div>
+
+<script>
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
+    }
+
+    let timer;
+    let audioCtx;
+
+    // Premium Ljudsyntes (Spelar ett mjukt ackord)
+    function playPremiumChime() {
+        if (!audioCtx) return;
+        
+        function createTone(freq, delay) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'sine'; // Mjuk sinuskurva
+            osc.frequency.value = freq;
+
+            // Forma ljudets volymkurva (Attack & Decay)
+            gain.gain.setValueAtTime(0, audioCtx.currentTime + delay);
+            gain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + delay + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + 3);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start(audioCtx.currentTime + delay);
+            osc.stop(audioCtx.currentTime + delay + 3);
+        }
+
+        // Spelar ett C-dur ackord brutet i en arpeggio
+        createTone(523.25, 0);    // C5
+        createTone(659.25, 0.15); // E5
+        createTone(783.99, 0.3);  // G5
+    }
+
+    function startTimer() {
+        // Initiera AudioContext på användarens klick för att kringgå webbläsarrestriktioner
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+
+        clearInterval(timer);
+        const mins = document.getElementById('minutes').value;
+        if (!mins || mins <= 0) return;
+
+        let timeLeft = mins * 60;
+        Notification.requestPermission();
+
+        // Uppdatera direkt
+        updateDisplay(timeLeft);
+
+        timer = setInterval(() => {
+            timeLeft--;
+            updateDisplay(timeLeft);
+
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                triggerAlarm();
+            }
+        }, 1000);
+    }
+
+    function updateDisplay(secondsLeft) {
+        let m = Math.floor(secondsLeft / 60);
+        let s = secondsLeft % 60;
+        document.getElementById('display').innerText = 
+            `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function triggerAlarm() {
+        playPremiumChime();
+        if (Notification.permission === 'granted') {
+            new Notification("Rova Water Boy", {
+                body: "Tiden är ute. Vänligen stäng av vattnet.",
+                icon: "icon.svg"
+            });
+        }
+        if (window.navigator.vibrate) {
+            window.navigator.vibrate([300, 150, 300, 150, 500]);
+        }
+    }
+</script>
+</body>
+</html>
